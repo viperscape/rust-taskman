@@ -1,0 +1,20 @@
+use comm::{channel};
+
+enum DoTask<T> {
+    Quit,
+    Work(proc(&T):Send), 
+}
+
+struct TaskMan {
+    work:channel::<DoTask<T>>(),
+    workers:channel::<channel<T>>()
+}
+/*
+struct Work {
+    quit: bool,
+    
+}*/
+
+fn main (){
+    
+}
