@@ -35,17 +35,17 @@ impl Worker {
 pub struct TaskMan {
     tx:SyncSender<SyncSender<DoTask>>, //task sender
     fx:Sender<DoTask>, //func sender
-    wn:Arc<AtomicInt>, //number of workers
+    wn:Arc<AtomicInt>, //number of workers desired
     wc:Arc<AtomicInt>, //current worker count
 }
 
 impl TaskMan {
-    pub fn new (n:int) -> TaskMan {// fr:Receiver<DoTask>, Sender<Sender<DoTask>>
+    pub fn new (n:int) -> TaskMan {
         let (fx, fr) = channel::<DoTask>();
         let (tx,tr) = sync_channel::<SyncSender<DoTask>>(0);
 
         let tm = TaskMan{tx:tx,fx:fx,wn:Arc::new(AtomicInt::new(n)),wc:Arc::new(AtomicInt::new(0))};
-
+        tm.spawn(); //spawn at least 1 worker
         let tm2 = tm.clone();
 
         let tb = std::task::TaskBuilder::new();
@@ -56,8 +56,9 @@ impl TaskMan {
                 match fr.recv() {
                     Quit => break,
                     Work(f) => {
-                        if tm2.wc.load(Relaxed) < tm2.wn.load(Relaxed) {
-                            tm2.spawn_n(tm2.wn.load(Relaxed) - tm2.wc.load(Relaxed)); //spawn atleast n workers
+                        if tm2.wc.load(Relaxed) < tm2.wn.load(Relaxed) { //spawn worker if needed, on-demand
+                            //tm2.spawn_n(tm2.wn.load(Relaxed) - tm2.wc.load(Relaxed)); //opt. spawn at least n workers
+                            tm2.spawn(); 
                         }
                         tr.recv().send(Work(f));
                     }
@@ -69,8 +70,8 @@ impl TaskMan {
 
     pub fn spawn (&self) {
         Worker::new(self.tx.clone(),self.wc.clone());
-        self.wn.fetch_add(1,Relaxed); //update num of workers
-        self.wc.fetch_add(1,Relaxed); //update num of workers
+        self.wn.fetch_add(1,Relaxed); //update total num of workers
+        self.wc.fetch_add(1,Relaxed); //update current count of workers
     }
     pub fn spawn_n (&self, n:int) {
         for _ in range(0,n-1) {self.spawn();}
