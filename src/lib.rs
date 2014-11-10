@@ -13,7 +13,7 @@ impl Worker {
         let tb = std::task::TaskBuilder::new();
         let tb = tb.named("worker");
         tb.spawn(proc() {
-            let (wx, wr) = sync_channel::<DoTask>(1);
+            let (wx, wr) = sync_channel::<DoTask>(0);
             tx.send(wx.clone()); //send taskman our worker chan
 
             loop { //wait on work
