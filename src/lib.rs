@@ -53,13 +53,15 @@ impl TaskMan {
 
         tb.spawn(proc() {
             loop {
-                match fr.recv() {
+                match fr.recv() { //wait for func to distribute
                     Quit => break,
                     Work(f) => {
-                        if tm2.wc.load(Relaxed) < tm2.wn.load(Relaxed) { //spawn worker if needed, on-demand
-                            //tm2.spawn_n(tm2.wn.load(Relaxed) - tm2.wc.load(Relaxed)); //opt. spawn at least n workers
-                            tm2.spawn(); 
-                        }
+                        let wn = tm2.wn.load(Relaxed);
+                        let wc = tm2.wc.load(Relaxed);
+                        if wc < wn {tm2.spawn();} //missing a worker? spawn a new one
+
+                        //rebalance could potentially stall out if there are too few total workers and too many are panicing (todo: consider this)
+                       // if wc > wn {tr.recv().send(Quit);} //rebalance worker count, have too many!
                         tr.recv().send(Work(f));
                     }
                 }
